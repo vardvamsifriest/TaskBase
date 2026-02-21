@@ -8,7 +8,7 @@ interface CardProps {
     description: string,
     icon?:ReactElement,
     button?:boolean
-    showusername:boolean
+    showusername?:boolean
 }
 
 const sizeStyles = {
