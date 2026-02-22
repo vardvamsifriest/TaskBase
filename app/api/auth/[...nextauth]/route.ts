@@ -80,35 +80,43 @@ export const authOptions: NextAuthOptions = {
 
     
     async signIn({ user, account }) {
-      if (account?.provider === "google" || account?.provider === "github") {
-        if (!user.email) return false;
+  console.log("signIn callback:", { user, account })
+  
+  if (account?.provider === "google" || account?.provider === "github") {
+    try {
+      if (!user.email) return false;
 
-        const existing = await prisma.user.findUnique({
-          where: { email: user.email },
+      const existing = await prisma.user.findUnique({
+        where: { email: user.email },
+      });
+
+      if (!existing) {
+        const base = (user.name ?? "user")
+          .replaceAll(" ", "")
+          .toLowerCase();
+
+        const username = `${base}${Math.floor(Math.random() * 10000)}`;
+
+        await prisma.user.create({
+          data: {
+            email: user.email,
+            username,
+            password: null, 
+          },
         });
-
-        if (!existing) {
-          const base = (user.name ?? "user")
-            .replaceAll(" ", "")
-            .toLowerCase();
-
-          
-          const username = `${base}${Math.floor(Math.random() * 10000)}`;
-
-          await prisma.user.create({
-            data: {
-              email: user.email,
-              username,
-              password: null, 
-            },
-          });
-        }
+        
+        console.log("User created successfully")
       }
+    } catch (error) {
+      console.error("signIn callback error:", error)
+      return false
+    }
+  }
 
-      return true;
-    },
-  },
+  return true;
 }
-
+      
+    },
+  }
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
