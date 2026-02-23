@@ -1,36 +1,52 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
-import { authOptions } from "../auth/[...nextauth]/route"  // Import authOptions
+import { authOptions } from "../auth/[...nextauth]/route" 
 
-// GET - Fetch all todos
 export async function GET(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)  // Pass authOptions
-        console.log("Session:", session)  // Debug
-        console.log("User ID:", session?.user?.id)  // Debug
-        if (!session?.user?.id) {
+        const session = await getServerSession(authOptions)
+        
+        if (!session?.user?.email) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
+        // Find user by email to get database ID
+        const user = await prisma.user.findUnique({
+            where: { email: session.user.email }
+        })
+
+        if (!user) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 })
+        }
+
         const todos = await prisma.todo.findMany({
-            where: { userId: parseInt(session.user.id) },
+            where: { userId: user.id },  // Use database ID
             orderBy: { createdAt: 'desc' }
         })
 
         return NextResponse.json(todos)
     } catch (error) {
+        console.error("GET /api/todos error:", error)
         return NextResponse.json({ error: "Failed to fetch todos" }, { status: 500 })
     }
 }
 
-// POST - Create new todo
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)  // Pass authOptions
+        const session = await getServerSession(authOptions)
         
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        }
+
+        // Find user by email to get database ID
+        const user = await prisma.user.findUnique({
+            where: { email: session.user.email }
+        })
+
+        if (!user) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 })
         }
 
         const { title, description, priority, category } = await req.json()
@@ -41,12 +57,13 @@ export async function POST(req: NextRequest) {
                 description,
                 priority,
                 category,
-                userId: parseInt(session.user.id)
+                userId: user.id  // Use database ID
             }
         })
 
         return NextResponse.json(todo)
     } catch (error) {
+        console.error("POST /api/todos error:", error)
         return NextResponse.json({ error: "Failed to create todo" }, { status: 500 })
     }
 }
